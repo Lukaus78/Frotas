@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoramento de Rotas</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        /* Estilos CSS */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-top: 20px;
+        }
+
+        #map {
+            height: 400px;
+            width: 80%;
+            margin: 20px 0;
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #routes {
+            width: 80%;
+            margin-bottom: 20px;
+        }
+
+        .route-item {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Monitoramento de Rotas</h1>
+    <div id="map"></div>
+    <div>
+        <button onclick="adicionarRota()">Adicionar Rota</button>
+        <button onclick="obterRotas()">Obter Rotas</button>
+        <button onclick="limparRotas()">Limpar Rotas</button>
+    </div>
+    <div id="routes"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script>
+        let map;
+
+        function initMap() {
+            map = L.map('map').setView([-25.363, 131.044], 4);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Adiciona evento de clique no mapa para adicionar marcadores
+            map.on("click", (event) => {
+                adicionarMarcador(event.latlng);
+            });
+        }
+
+        function adicionarMarcador(location) {
+            L.marker(location).addTo(map);
+        }
+
+        async function adicionarRota() {
+            const nome = prompt("Digite um nome para a rota:");
+            const horarioInicial = prompt("Digite o horário inicial (HH:MM):");
+            const horarioFinal = prompt("Digite o horário final (HH:MM):");
+            const coordinates = map.getCenter();
+            const supabaseUrl = 'https://uktpvsbhckvvvfotbibt.supabase.co';
+            const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrdHB2c2JoY2t2dnZmb3RiaWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTUxMDkzOTIsImV4cCI6MjAzMDY4NTM5Mn0.BpeI3Ol0kcNCQLB1HuI7AxVlyO9j_sGz2meVY8aVhYE';
+            const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+            try {
+                const { data, error } = await supabase.from('rotas').insert([
+                    { nome, horario_inicial: horarioInicial, horario_final: horarioFinal, latitude: coordinates.lat, longitude: coordinates.lng }
+                ]);
+                if (error) {
+                    throw error;
+                }
+                console.log('Nova rota adicionada:', data);
+                obterRotas();
+            } catch (error) {
+                console.error('Erro ao adicionar rota:', error.message);
+            }
+        }
+
+        function obterRotas() {
+            const supabaseUrl = 'https://uktpvsbhckvvvfotbibt.supabase.co';
+            const supabaseKey = '=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrdHB2c2JoY2t2dnZmb3RiaWJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTUxMDkzOTIsImV4cCI6MjAzMDY4NTM5Mn0.BpeI3Ol0kcNCQLB1HuI7AxVlyO9j_sGz2meVY8aVhYE';
+            const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+            supabase.from('rotas').select('*')
+                .then(({ data, error }) => {
+                    if (error) {
+                        throw error;
+                    }
+
+                    const routesDiv = document.getElementById('routes');
+                    routesDiv.innerHTML = '';
+                    data.forEach(route => {
+                        routesDiv.innerHTML += `
+                            <div class="route-item">
+                                <p><strong>${route.nome}</strong></p>
+                                <p>Horário Inicial: ${route.horario_inicial}, Horário Final: ${route.horario_final}</p>
+                                <p>Latitude: ${route.latitude}, Longitude: ${route.longitude}</p>
+                            </div>`;
+                        adicionarMarcador([route.latitude, route.longitude], route.nome);
+                    });
+                })
+                .catch(error => {
+                    console.error('Erro ao obter rotas:', error.message);
+                });
+        }
+
+        function limparRotas() {
+            document.getElementById('routes').innerHTML = '';
+        }
+
+        window.onload = () => {
+            initMap();
+            obterRotas();
+        };
+    </script>
+</body>
+</html>
